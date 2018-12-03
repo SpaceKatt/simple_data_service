@@ -8,8 +8,8 @@ provider "aws" {
   region = "${var.region}"
 }
 
-resource "aws_key_pair" "terraform-packer-auto" {
-    key_name = "terraform-packer-auto"
+resource "aws_key_pair" "simple-data-auto" {
+    key_name = "simple-data-auto"
     public_key = "${file("../../private/id_terra.pub")}"
 }
 
@@ -76,7 +76,7 @@ resource "aws_instance" "simple-data" {
   instance_type               = "t2.micro"
   security_groups             = ["${aws_security_group.simple-data-sg.name}"]
   associate_public_ip_address = true
-  key_name = "${aws_key_pair.terraform-packer-auto.key_name}"
+  key_name = "${aws_key_pair.simple-data-auto.key_name}"
 
   connection {
     user = "ubuntu"
