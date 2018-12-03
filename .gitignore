@@ -1,0 +1,27 @@
+# Environment variables
+.env
+
+# Swap files (neovim)
+.swp
+
+# Build files
+*.pyc
+
+# Log files
+logs/
+
+# Build files
+dist/
+
+# Any private files
+private/
+
+# dependencies
+node_modules/
+
+# Terraform state
+terraform.tfstate
+packer_build_vars.tfvars
+.terraform.tfstate.lock.info
+.terraform/
+terraform.tfstate.backup
