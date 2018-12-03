@@ -1,0 +1,62 @@
+{
+    "min_packer_version": "1.3.2",
+    "variables": {
+        "aws_profile": "{{ env `AWS_PROFILE` }}",
+        "ssh_name": "ubuntu",
+        "ssh_key_path": "{{ env `SSH_KEY_PATH` }}",
+        "aws_region": "us-west-2"
+    },
+    "builders": [{
+        "type": "amazon-ebs",
+        "region": "{{ user `aws_region` }}",
+        "source_ami": "ami-0bbe6b35405ecebdb",
+        "profile": "{{ user `aws_profile` }}",
+        "instance_type": "t2.micro",
+        "ami_name": "simple-data-service-{{timestamp}}",
+        "ssh_username": "{{ user `ssh_name` }}",
+        "ssh_private_key_file": ""
+    }],
+    "provisioners": [{
+        "type": "shell",
+        "script": "packer_setup.sh"
+    },{
+        "type": "file",
+        "source": "../config/etc",
+        "destination": "/"
+    },{
+        "type": "file",
+        "source": "../../src",
+        "destination": "/home/ubuntu/simple-data"
+    },{
+        "type": "file",
+        "source": "../../log",
+        "destination": "/home/ubuntu/log"
+    },{
+        "type": "file",
+        "source": "../../.env",
+        "destination": "/home/ubuntu/.env"
+    },{
+        "type": "file",
+        "source": "../../private/credentials",
+        "destination": "/home/ubuntu/.aws/credentials"
+    },{
+        "type": "file",
+        "source": "../../private/config",
+        "destination": "/home/ubuntu/.aws/config"
+    },{
+        "type": "shell",
+        "inline": [
+            "sed 's/export\\s//g' .env > .envy && cp .envy .env",
+            "rm /etc/nginx/sites-enabled/default",
+
+            "sudo systemctl enable gunicorn.socket",
+            "sudo systemctl start gunicorn.socket",
+
+            "sudo systemctl enable gunicorn.service",
+            "sudo systemctl start gunicorn.service",
+
+            "sudo systemctl enable nginx.service",
+            "sudo systemctl start nginx.service"
+        ]
+    }]
+}
