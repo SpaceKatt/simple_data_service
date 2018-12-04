@@ -1,9 +1,18 @@
 #/usr/bin/env bash
 
+sudo add-apt-repository main
+sudo add-apt-repository universe
+sudo add-apt-repository multiverse
+sudo add-apt-repository restricted
+
 sudo apt-get update
+
 sudo apt-get install -y \
                         nginx \
-                        python3 \
+                        python3
+
+sudo apt-get update
+sudo apt-get install -y \
                         python3-pip \
                         postgresql \
                         postgresql-contrib
