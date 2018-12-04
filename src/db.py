@@ -31,7 +31,7 @@ def get_pool(req):
     return req.app['pool']
 
 
-async def insert_new_user(req, name, passhash):
+async def insert_data(req, uid, msg):
     '''
     Associate a statement with a fictional character
     '''
@@ -41,16 +41,18 @@ async def insert_new_user(req, name, passhash):
         async with connection.transaction():
             try:
                 await connection.execute('''
-                                     INSERT INTO poster (username, passhash)
+                                     INSERT INTO message (uid, msg)
                                      VALUES ($1, $2)
-                                     RETURNING id
-                                         ''', name, passhash)
+                                     RETURNING did
+                                         ''', uid, msg)
                 return True
             except pg.exceptions.UniqueViolationError:
                 return False
+            except Exception:
+                return False
 
 
-async def authenticate_user(req, name, passhash):
+async def fetch_data(req, count, back):
     '''
     Retrieves a statement from a fictional character
     '''

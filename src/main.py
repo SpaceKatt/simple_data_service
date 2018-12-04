@@ -6,14 +6,19 @@ Runs the webserver.
 import asyncio
 import json
 import os
+from sys import stderr
 
+import aiohttp
 from aiohttp import web
 
 import db as pg_cli
 
 
 ROUTES = web.RouteTableDef()
+
+
 AUTH_CODE = os.environ['AUTH_SIMPLE_IDENT']
+IDENTITY_ENDPOINT = os.environ['IDENTITY_ENDPOINT']
 
 
 @ROUTES.get('/')
@@ -24,7 +29,32 @@ async def root_handle(req):
     return web.Response(status=200, body='Stuff goes here')
 
 
-@ROUTES.post('/register')
+async def auth_user(username, passhash):
+    endpoint = 'http://{}/authenticate'.format(IDENTITY_ENDPOINT)
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(endpoint, json={
+                                                "username": username,
+                                                "passhash": passhash,
+                                                "auth_code": AUTH_CODE
+                                                }) as resp:
+            if resp.status == 401:
+                return -1
+
+            try:
+                resp_data = await resp.json()
+            except json.decoder.JSONDecodeError:
+                print('Error communicating with identity service', file=stderr)
+                return -2
+            try:
+                uid = resp_data['uid']
+                return uid
+            except KeyError:
+                print('Error parsing identity response', file=stderr)
+                return -2
+
+
+@ROUTES.post('/data')
 async def register(req):
     '''
     Registers a new user
@@ -37,13 +67,21 @@ async def register(req):
     try:
         username = data['username']
         passhash = data['passhash']
+        msg = data['msg']
     except KeyError:
         return web.Response(status=400)
 
     if username is False or passhash is False:
         return web.Response(status=400)
 
-    success = await pg_cli.insert_new_user(req, username, passhash)
+    uid = await auth_user(username, passhash)
+
+    if uid == -1:
+        return web.Response(status=401)
+    if uid == -2:
+        return web.Response(status=500)
+
+    success = await pg_cli.insert_data(req, uid, msg)
 
     if success:
         return web.Response(status=201)
@@ -51,7 +89,7 @@ async def register(req):
         return web.Response(status=409, body="Username already taken")
 
 
-@ROUTES.post('/authenticate')
+@ROUTES.post('/fetch')
 async def authenticate(req):
     '''
     Registers a new user
@@ -64,13 +102,19 @@ async def authenticate(req):
     try:
         username = data['username']
         passhash = data['passhash']
+        count = data['count']
     except KeyError:
         return web.Response(status=400)
+
+    try:
+        back = data['back']
+    except KeyError:
+        back = 0
 
     if username is False or passhash is False:
         return web.Response(status=400)
 
-    success = await pg_cli.authenticate_user(req, username, passhash)
+    success = await pg_cli.authenticate_user(req, count, back)
 
     if success:
         return web.Response(status=200)
