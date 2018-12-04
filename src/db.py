@@ -52,23 +52,44 @@ async def insert_data(req, uid, msg):
                 return False
 
 
-async def fetch_data(req, count, back):
-    '''
-    Retrieves a statement from a fictional character
-    '''
+async def get_max_int(req):
     pool = get_pool(req)
 
     async with pool.acquire() as connection:
         async with connection.transaction():
             stmt = await connection.fetchrow('''
-                                        SELECT passhash FROM poster
-                                        WHERE $1 = username
-                                          ''', name)
+                                               SELECT did FROM message
+                                               ORDER BY did
+                                               DESC LIMIT 1
+                                          ''')
+            try:
+                did = stmt['did']
+                return did
+            except KeyError:
+                return False
+
+
+async def fetch_data(req, count, back):
+    '''
+    Retrieves a statement from a fictional character
+    '''
+    max_did = await get_max_int(req)
+    max_did = int(max_did) - int(back) + 1
+    min_did = max_did - int(count) - 1
+
+    pool = get_pool(req)
+
+    async with pool.acquire() as connection:
+        async with connection.transaction():
+            stmt = await connection.fetch('''
+                                        SELECT * FROM message
+                                        WHERE $1 < did AND $2 > did
+                                          ''', min_did, max_did)
             if stmt is None:
                 return False
             else:
-                upstream_hash = str(stmt['passhash'])
-                if upstream_hash == passhash:
-                    return True
-                else:
+                print(stmt)
+                try:
+                    return [dict(x) for x in stmt]
+                except Exception:
                     return False

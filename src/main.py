@@ -111,13 +111,23 @@ async def authenticate(req):
     except KeyError:
         back = 0
 
+    uid = await auth_user(username, passhash)
+
+    if uid == -1:
+        return web.Response(status=401)
+    if uid == -2:
+        return web.Response(status=500)
+
     if username is False or passhash is False:
         return web.Response(status=400)
 
-    success = await pg_cli.authenticate_user(req, count, back)
+    success = await pg_cli.fetch_data(req, count, back)
+
+    for item in success:
+        item['created_on'] = item['created_on'].isoformat()
 
     if success:
-        return web.Response(status=200)
+        return web.json_response({"result": success})
     else:
         return web.Response(status=401)
 
