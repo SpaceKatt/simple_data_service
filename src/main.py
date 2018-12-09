@@ -55,7 +55,7 @@ async def auth_user(username, passhash):
 
 
 @ROUTES.post('/data')
-async def register(req):
+async def post_data(req):
     '''
     Registers a new user
     '''
@@ -81,16 +81,17 @@ async def register(req):
     if uid == -2:
         return web.Response(status=500)
 
-    success = await pg_cli.insert_data(req, uid, msg)
+    success = await pg_cli.insert_data(req, uid, msg, username)
 
     if success:
         return web.Response(status=201)
     else:
-        return web.Response(status=409, body="Username already taken")
+        print('We gots an error', file=stderr)
+        return web.Response(status=500)
 
 
 @ROUTES.post('/fetch')
-async def authenticate(req):
+async def post_fetch(req):
     '''
     Registers a new user
     '''
@@ -123,11 +124,11 @@ async def authenticate(req):
 
     success = await pg_cli.fetch_data(req, count, back)
 
-    for item in success:
+    for item in success['result']:
         item['created_on'] = item['created_on'].isoformat()
 
     if success:
-        return web.json_response({"result": success})
+        return web.json_response(success)
     else:
         return web.Response(status=401)
 

@@ -31,7 +31,7 @@ def get_pool(req):
     return req.app['pool']
 
 
-async def insert_data(req, uid, msg):
+async def insert_data(req, uid, msg, username):
     '''
     Associate a statement with a fictional character
     '''
@@ -41,10 +41,10 @@ async def insert_data(req, uid, msg):
         async with connection.transaction():
             try:
                 await connection.execute('''
-                                     INSERT INTO message (uid, msg)
-                                     VALUES ($1, $2)
+                                     INSERT INTO message (uid, msg, nameuser)
+                                     VALUES ($1, $2, $3)
                                      RETURNING did
-                                         ''', uid, msg)
+                                         ''', uid, msg, username)
                 return True
             except pg.exceptions.UniqueViolationError:
                 return False
@@ -58,12 +58,11 @@ async def get_max_int(req):
     async with pool.acquire() as connection:
         async with connection.transaction():
             stmt = await connection.fetchrow('''
-                                               SELECT did FROM message
-                                               ORDER BY did
-                                               DESC LIMIT 1
+                                               SELECT count(*) as exact_count
+                                               FROM message
                                           ''')
             try:
-                did = stmt['did']
+                did = stmt['exact_count']
                 return did
             except KeyError:
                 return False
@@ -74,8 +73,9 @@ async def fetch_data(req, count, back):
     Retrieves a statement from a fictional character
     '''
     max_did = await get_max_int(req)
-    max_did = int(max_did) - int(back) + 1
-    min_did = max_did - int(count) - 1
+    # actual_max = max_did
+    # max_did = int(max_did) - int(back) + 1
+    # min_did = max_did - int(count) - 1
 
     pool = get_pool(req)
 
@@ -83,13 +83,16 @@ async def fetch_data(req, count, back):
         async with connection.transaction():
             stmt = await connection.fetch('''
                                         SELECT * FROM message
-                                        WHERE $1 < did AND $2 > did
-                                          ''', min_did, max_did)
+                                        ORDER BY did DESC LIMIT $1
+                                          ''', int(count))
             if stmt is None:
                 return False
             else:
-                print(stmt)
                 try:
-                    return [dict(x) for x in stmt]
+                    results = {
+                            "result": [dict(x) for x in stmt],
+                            "max_post": max_did
+                            }
+                    return results
                 except Exception:
                     return False
